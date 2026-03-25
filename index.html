@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMRADE — Open Source Community Task Manager</title>
+    <meta name="description" content="Comrade is an open-source, map-based community task manager. Coordinate local tasks, chat in real-time, and level up together.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep: #080c10;
+            --bg-panel: #0d1117;
+            --bg-card: #111a22;
+            --green-core: #2effa0;
+            --green-dim: #1a8a5a;
+            --green-dark: #0f3d2a;
+            --green-glow: rgba(46, 255, 160, 0.15);
+            --green-glow-strong: rgba(46, 255, 160, 0.35);
+            --text-primary: #c8d6e0;
+            --text-muted: #5a7a8a;
+            --border-green: rgba(46, 255, 160, 0.12);
+            --font-mono: 'Share Tech Mono', monospace;
+            --font-display: 'Orbitron', sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-mono);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+
+        /* ── Scanline overlay ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px,
+                rgba(0, 0, 0, 0.03) 4px
+            );
+        }
+
+        /* ── Grid background ── */
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(var(--border-green) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-green) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.3;
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%);
+        }
+
+        /* ── Floating particles ── */
+        .particles {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--green-core);
+            border-radius: 50%;
+            opacity: 0;
+            animation: float-up linear infinite;
+        }
+        @keyframes float-up {
+            0%   { opacity: 0; transform: translateY(0) scale(1); }
+            10%  { opacity: 0.6; }
+            90%  { opacity: 0.1; }
+            100% { opacity: 0; transform: translateY(-100vh) scale(0.3); }
+        }
+
+        /* ── Navigation ── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(180deg, var(--bg-deep) 60%, transparent);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .nav-logo {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: var(--green-core);
+            text-shadow: 0 0 20px var(--green-glow-strong);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--green-core);
+            text-shadow: 0 0 12px var(--green-glow);
+        }
+
+        /* ── Sections common ── */
+        section {
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6rem 2rem 4rem;
+        }
+
+        .hero-inner {
+            max-width: 800px;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--green-dim);
+            border: 1px solid var(--green-dark);
+            padding: 0.4rem 1.2rem;
+            margin-bottom: 2.5rem;
+            background: rgba(46, 255, 160, 0.03);
+            animation: fadeInDown 0.8s ease-out both;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            letter-spacing: 0.25em;
+            color: var(--green-core);
+            text-shadow:
+                0 0 40px rgba(46, 255, 160, 0.4),
+                0 0 80px rgba(46, 255, 160, 0.15),
+                0 0 120px rgba(46, 255, 160, 0.05);
+            line-height: 1.1;
+            animation: glowPulse 4s ease-in-out infinite, fadeInUp 1s ease-out both;
+            animation-delay: 0s, 0.2s;
+        }
+
+        .hero-subtitle {
+            font-family: var(--font-mono);
+            font-size: clamp(0.75rem, 2vw, 1rem);
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--green-dim);
+            margin-top: 1rem;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+
+        .hero-desc {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-top: 2rem;
+            max-width: 550px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.8;
+            animation: fadeInUp 1s ease-out 0.6s both;
+        }
+
+        .hero-actions {
+            margin-top: 3rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 1s ease-out 0.8s both;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: 0.9rem 2rem;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--green-dark), rgba(46, 255, 160, 0.15));
+            border-color: var(--green-core);
+            color: var(--green-core);
+            box-shadow: 0 0 20px rgba(46, 255, 160, 0.1), inset 0 0 20px rgba(46, 255, 160, 0.05);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, rgba(46, 255, 160, 0.25), rgba(46, 255, 160, 0.1));
+            box-shadow: 0 0 40px rgba(46, 255, 160, 0.2), inset 0 0 30px rgba(46, 255, 160, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--green-core);
+            color: var(--green-core);
+            box-shadow: 0 0 20px rgba(46, 255, 160, 0.08);
+            transform: translateY(-2px);
+        }
+
+        /* ── Section headers ── */
+        .section-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--green-dim);
+            margin-bottom: 0.8rem;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--green-core);
+            text-shadow: 0 0 30px rgba(46, 255, 160, 0.2);
+        }
+
+        .section-divider {
+            width: 60px;
+            height: 1px;
+            background: linear-gradient(90deg, var(--green-core), transparent);
+            margin: 1.5rem 0 0;
+        }
+
+        /* ── Features ── */
+        .features {
+            padding: 6rem 0;
+        }
+
+        .features-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .features-header .section-divider {
+            margin: 1.5rem auto 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            border: 1px solid var(--border-green);
+            background: linear-gradient(160deg, var(--bg-card), var(--bg-panel));
+            padding: 2rem 1.5rem;
+            position: relative;
+            transition: all 0.4s ease;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--green-core), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(46, 255, 160, 0.25);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 40px rgba(46, 255, 160, 0.06);
+        }
+
+        .feature-card:hover::before { opacity: 1; }
+
+        .feature-icon {
+            font-size: 1.8rem;
+            margin-bottom: 1.2rem;
+            display: block;
+            filter: grayscale(0.3);
+        }
+
+        .feature-card h3 {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--green-core);
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .feature-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        /* ── Screenshots ── */
+        .screenshots {
+            padding: 6rem 0;
+        }
+
+        .screenshots-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .screenshots-header .section-divider {
+            margin: 1.5rem auto 0;
+        }
+
+        .screenshot-showcase {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+        }
+
+        .screenshot-item {
+            position: relative;
+            border: 1px solid var(--border-green);
+            background: var(--bg-panel);
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .screenshot-item:hover {
+            border-color: rgba(46, 255, 160, 0.25);
+            box-shadow: 0 0 60px rgba(46, 255, 160, 0.06);
+        }
+
+        .screenshot-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-green);
+        }
+
+        .screenshot-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green-dark);
+        }
+
+        .screenshot-dot:first-child { background: #3d1a1a; }
+        .screenshot-dot:nth-child(2) { background: #3d3a1a; }
+        .screenshot-dot:nth-child(3) { background: var(--green-dark); }
+
+        .screenshot-label {
+            margin-left: auto;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .screenshot-item img {
+            width: 100%;
+            display: block;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .screenshot-item:hover img { opacity: 1; }
+
+        .screenshot-caption {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-green);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .screenshot-caption span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .screenshot-caption .status {
+            color: var(--green-dim);
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        /* ── CTA ── */
+        .cta {
+            padding: 8rem 0;
+            text-align: center;
+        }
+
+        .cta-box {
+            border: 1px solid var(--border-green);
+            background: linear-gradient(160deg, var(--bg-card), var(--bg-panel));
+            padding: 4rem 2rem;
+            position: relative;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .cta-box::before,
+        .cta-box::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--green-dim);
+        }
+
+        .cta-box::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+        }
+
+        .cta-box::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+        }
+
+        .cta-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 3vw, 1.6rem);
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--green-core);
+            text-shadow: 0 0 30px rgba(46, 255, 160, 0.2);
+            margin-bottom: 1rem;
+        }
+
+        .cta-desc {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 2.5rem;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* ── Footer ── */
+        footer {
+            position: relative;
+            z-index: 1;
+            border-top: 1px solid var(--border-green);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1100px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .footer-logo {
+            font-family: var(--font-display);
+            font-size: 0.75rem;
+            letter-spacing: 0.25em;
+            color: var(--green-dim);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--green-core);
+        }
+
+        .footer-copy {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { text-shadow: 0 0 40px rgba(46,255,160,0.4), 0 0 80px rgba(46,255,160,0.15); }
+            50%      { text-shadow: 0 0 60px rgba(46,255,160,0.5), 0 0 120px rgba(46,255,160,0.2); }
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            nav { padding: 0.8rem 1rem; }
+            .nav-links { gap: 1rem; }
+            .nav-links a { font-size: 0.7rem; }
+            .hero { padding: 5rem 1.5rem 3rem; }
+            .features, .screenshots, .cta { padding: 4rem 0; }
+            .cta-box { padding: 2.5rem 1.5rem; }
+            .footer-inner { justify-content: center; text-align: center; }
+        }
+
+        @media (max-width: 480px) {
+            .nav-links { display: none; }
+            .hero-title { letter-spacing: 0.12em; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="particles" id="particles"></div>
+
+<!-- Navigation -->
+<nav>
+    <div class="nav-logo">COMRADE</div>
+    <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#screenshots">Screenshots</a></li>
+        <li><a href="https://github.com/trebidav/comrade" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://comrade-production.up.railway.app" target="_blank" rel="noopener">Demo</a></li>
+    </ul>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-inner">
+        <span class="hero-tag">Open Source // v0.1.0-beta</span>
+        <h1 class="hero-title">COMRADE</h1>
+        <p class="hero-subtitle">Community Task Manager</p>
+        <p class="hero-desc">
+            A location-based platform for coordinating community tasks.
+            Drop pins on the map, assign missions, chat in real-time,
+            and build your local crew.
+        </p>
+        <div class="hero-actions">
+            <a href="https://comrade-production.up.railway.app" target="_blank" rel="noopener" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                Try Demo
+            </a>
+            <a href="https://github.com/trebidav/comrade" target="_blank" rel="noopener" class="btn btn-ghost">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                View on GitHub
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="features-header reveal">
+            <p class="section-label">// Capabilities</p>
+            <h2 class="section-title">SYSTEMS ONLINE</h2>
+            <div class="section-divider"></div>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card reveal">
+                <span class="feature-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-core)" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                <h3>Map-Based Tasks</h3>
+                <p>Pin tasks to real-world locations. See what needs doing nearby and claim missions within your operating radius.</p>
+            </div>
+            <div class="feature-card reveal">
+                <span class="feature-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-core)" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </span>
+                <h3>Real-Time Chat</h3>
+                <p>Coordinate with your crew through integrated messaging. Discuss tasks, share updates, and stay synced on the ground.</p>
+            </div>
+            <div class="feature-card reveal">
+                <span class="feature-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-core)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </span>
+                <h3>Gamification</h3>
+                <p>Earn XP, level up, and unlock achievements. Track your stats and compete with fellow community members.</p>
+            </div>
+            <div class="feature-card reveal">
+                <span class="feature-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-core)" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                </span>
+                <h3>Team Ops</h3>
+                <p>Add friends, form squads, and tackle tasks together. Built for communities that get things done as a unit.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Screenshots -->
+<section class="screenshots" id="screenshots">
+    <div class="container">
+        <div class="screenshots-header reveal">
+            <p class="section-label">// Intel</p>
+            <h2 class="section-title">FIELD PREVIEW</h2>
+            <div class="section-divider"></div>
+        </div>
+        <div class="screenshot-showcase">
+            <div class="screenshot-item reveal">
+                <div class="screenshot-bar">
+                    <span class="screenshot-dot"></span>
+                    <span class="screenshot-dot"></span>
+                    <span class="screenshot-dot"></span>
+                    <span class="screenshot-label">Command Interface</span>
+                </div>
+                <img src="Comrade-Desktop.png" alt="Comrade desktop application showing the map-based task management interface with active tasks, chat, and user profile panels" loading="lazy">
+                <div class="screenshot-caption">
+                    <span>Map view with active task management, real-time chat, and user profile</span>
+                    <span class="status">● OPERATIONAL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+    <div class="container">
+        <div class="cta-box reveal">
+            <h2 class="cta-title">READY TO DEPLOY?</h2>
+            <p class="cta-desc">
+                Comrade is free and open source. Try the live demo or clone the repo and run your own instance.
+            </p>
+            <div class="cta-actions">
+                <a href="https://comrade-production.up.railway.app" target="_blank" rel="noopener" class="btn btn-primary">
+                    Launch Demo
+                </a>
+                <a href="https://github.com/trebidav/comrade" target="_blank" rel="noopener" class="btn btn-ghost">
+                    Source Code
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="footer-inner">
+        <span class="footer-logo">COMRADE</span>
+        <ul class="footer-links">
+            <li><a href="https://github.com/trebidav/comrade" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://comrade-production.up.railway.app" target="_blank" rel="noopener">Demo</a></li>
+            <li><a href="https://github.com/trebidav/comrade/issues" target="_blank" rel="noopener">Issues</a></li>
+        </ul>
+        <span class="footer-copy">MIT License</span>
+    </div>
+</footer>
+
+<script>
+    // Particles
+    (function() {
+        const container = document.getElementById('particles');
+        const count = 25;
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDuration = (12 + Math.random() * 20) + 's';
+            p.style.animationDelay = (Math.random() * 15) + 's';
+            p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+            container.appendChild(p);
+        }
+    })();
+
+    // Scroll reveal
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => entry.target.classList.add('visible'), i * 80);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15 });
+    reveals.forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
